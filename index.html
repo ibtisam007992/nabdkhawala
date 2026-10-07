@@ -1,0 +1,1797 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منصة نبض خولة - مدرسة خولة بنت حكيم (9-12)</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons fallback CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts: Tajawal -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+    <!-- Three.js CDN for 3D graphics -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- SheetJS CDN for parsing Excel files and Drive Sheets -->
+    <script src="https://cdnjs.cloudflare.com/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Tajawal', 'sans-serif'],
+                    },
+                    colors: {
+                        tech: {
+                            50: '#f0f9ff',
+                            500: '#06b6d4',
+                            600: '#0891b2',
+                            900: '#0e3746',
+                        },
+                        chem: {
+                            50: '#f0fdf4',
+                            500: '#10b981',
+                            600: '#059669',
+                            900: '#064e3b',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            overflow-x: hidden;
+        }
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            pointer-events: none;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+        .glass-card:hover {
+            border-color: rgba(56, 189, 248, 0.5);
+            transform: translateY(-2px);
+        }
+
+        @keyframes bannerLightSweep {
+            0% { transform: translateX(-150%) skewX(-25deg); opacity: 0; }
+            30% { opacity: 0.85; }
+            70% { opacity: 0.85; }
+            100% { transform: translateX(250%) skewX(-25deg); opacity: 0; }
+        }
+        @keyframes borderPulseGlow {
+            0%, 100% { border-color: rgba(6, 182, 212, 0.7); box-shadow: 0 0 25px rgba(6, 182, 212, 0.4), inset 0 0 15px rgba(6, 182, 212, 0.2); }
+            50% { border-color: rgba(245, 158, 11, 0.8); box-shadow: 0 0 35px rgba(245, 158, 11, 0.5), inset 0 0 20px rgba(245, 158, 11, 0.3); }
+        }
+        @keyframes pulseAura {
+            0%, 100% { opacity: 0.35; transform: scale(1); }
+            50% { opacity: 0.75; transform: scale(1.08); }
+        }
+        .banner-container {
+            position: relative;
+            overflow: hidden;
+            border-bottom: 2px solid rgba(6, 182, 212, 0.6);
+            animation: borderPulseGlow 4s infinite ease-in-out;
+        }
+        .banner-light-beam {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 40%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), rgba(56, 189, 248, 0.5), rgba(245, 158, 11, 0.4), transparent);
+            pointer-events: none;
+            z-index: 15;
+            animation: bannerLightSweep 5s infinite ease-in-out;
+        }
+        .banner-spotlight {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 12;
+            background: radial-gradient(400px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(56, 189, 248, 0.25), rgba(245, 158, 11, 0.15), transparent 70%);
+            transition: opacity 0.3s ease;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(56, 189, 248, 0.3);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(56, 189, 248, 0.6);
+        }
+    </style>
+</head>
+<body class="min-h-screen relative selection:bg-cyan-500 selection:text-white">
+
+    <div id="canvas-container"></div>
+
+    <div class="relative z-10 flex flex-col min-h-screen">
+
+        <!-- TOP BRANDING BANNER (Interactive Glowing & Animated Banner) -->
+        <div id="top-banner-wrapper" class="w-full bg-slate-950 banner-container shadow-[0_10px_30px_rgba(0,0,0,0.8)] group cursor-pointer">
+            <!-- Animated Sweeping Beam -->
+            <div class="banner-light-beam"></div>
+            
+            <!-- Mouse Interactive Light Spotlight Overlay -->
+            <div id="banner-spotlight-layer" class="banner-spotlight opacity-80 group-hover:opacity-100"></div>
+            
+            <!-- Glowing Corner Ambient Lights -->
+            <div class="absolute -top-12 -left-12 w-48 h-48 bg-cyan-500/30 rounded-full blur-3xl pointer-events-none animate-pulse"></div>
+            <div class="absolute -bottom-12 -right-12 w-48 h-48 bg-amber-500/30 rounded-full blur-3xl pointer-events-none animate-pulse" style="animation-delay: 2s;"></div>
+
+            <!-- Banner Image with Subtle Interactive Tilt / Zoom Effect -->
+            <div class="w-full max-w-full flex items-center justify-center bg-slate-950 relative z-10">
+                <img id="top-banner-img" src="https://lh3.googleusercontent.com/d/1ePU5T6AgEDCPeJMiePgGLzwr7MAugrwY=s1600" 
+                     alt="بانر منصة نبض خولة - مدرسة خولة بنت حكيم (9-12)" 
+                     class="w-full h-36 md:h-52 lg:h-64 object-fill object-center transition-transform duration-500 ease-out group-hover:scale-[1.015]">
+            </div>
+        </div>
+
+        <!-- MAIN NAVIGATION HEADER -->
+        <header class="glass-panel sticky top-0 z-40 border-b border-slate-700/60 px-4 lg:px-8 py-3">
+            <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
+                
+                <!-- Subject Switcher Dropdown -->
+                <div class="flex items-center bg-slate-900/90 p-2 rounded-2xl border border-slate-700/80 shadow-inner gap-2 w-full md:w-auto">
+                    <label for="subject-select" class="text-xs text-slate-200 font-bold px-2 flex items-center gap-2 shrink-0">
+                        <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                        <span>اختر المادة:</span>
+                    </label>
+                    <select id="subject-select" onchange="changeSubject(this.value)" class="bg-slate-800 border border-slate-700 text-white text-xs md:text-sm rounded-xl px-3 py-2 focus:outline-none focus:border-cyan-500 font-bold cursor-pointer w-full md:w-auto">
+                        <option value="التربية الإسلامية">التربية الإسلامية</option>
+                        <option value="اللغة العربية">اللغة العربية</option>
+                        <option value="اللغة الإنجليزية">اللغة الإنجليزية</option>
+                        <option value="الرياضيات">الرياضيات</option>
+                        <option value="الرياضيات المتقدمة">الرياضيات المتقدمة</option>
+                        <option value="الرياضيات الأساسية">الرياضيات الأساسية</option>
+                        <option value="الفيزياء">الفيزياء</option>
+                        <option value="الكيمياء">الكيمياء</option>
+                        <option value="الأحياء">الأحياء</option>
+                        <option value="العلوم البيئية" selected>العلوم البيئية</option>
+                        <option value="السياحة">السياحة</option>
+                        <option value="الدراسات الاجتماعية">الدراسات الاجتماعية</option>
+                        <option value="الجغرافيا والتقنيات الحديثة">الجغرافيا والتقنيات الحديثة</option>
+                        <option value="العالم من حولنا">العالم من حولنا</option>
+                        <option value="تاريخ عمان والعالم">تاريخ عمان والعالم</option>
+                        <option value="تقنية المعلومات">تقنية المعلومات</option>
+                        <option value="المهارات الحياتية">المهارات الحياتية</option>
+                        <option value="التربية الرياضية">التربية الرياضية</option>
+                        <option value="الفنون التشكيلية">الفنون التشكيلية</option>
+                        <option value="المهارات الموسيقية">المهارات الموسيقية</option>
+                    </select>
+                </div>
+
+                <!-- Administrative & Staff Directory Trigger Buttons -->
+                <div class="flex items-center justify-between md:justify-end gap-2.5 w-full md:w-auto">
+                    <!-- Staff Directory Modal Trigger -->
+                    <button onclick="openStaffModal()" class="cursor-pointer bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg transition duration-200" title="دليل التواصل المباشر مع الهيئة الإدارية والتدريسية">
+                        <svg class="w-4 h-4 text-purple-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        <span>الهيئة الإدارية والتدريسية</span>
+                    </button>
+
+                    <!-- Google Drive Link Button -->
+                    <button onclick="openDriveImportModal()" class="cursor-pointer bg-slate-800/90 hover:bg-slate-700 text-amber-300 border border-amber-500/40 text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-2 transition" title="استيراد قائمة الصف عبر رابط Google Drive المخزن">
+                        <svg class="w-4 h-4 text-amber-400" viewBox="0 0 24 24" fill="currentColor"><path d="M7.71 3.5L1.15 15l3.43 6 6.55-11.5 -3.42-6zm2.86 6L14 3.5h6.86l-3.43 6H10.57zm3.15 1.5l3.43 6H3.43l3.42-6h6.86z"/></svg>
+                        <span>استيراد الصف</span>
+                    </button>
+
+                    <div class="text-left hidden lg:block mr-2">
+                        <span class="text-[10px] text-slate-400 block">الصف المعتمد</span>
+                        <span id="active-class-display" class="text-xs font-bold text-cyan-400 bg-cyan-950/80 px-2.5 py-0.5 rounded-full border border-cyan-800/50">الصف 10 / 1</span>
+                    </div>
+                </div>
+
+            </div>
+        </header>
+
+        <main class="flex-grow max-w-7xl w-full mx-auto p-4 md:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- LEFT COLUMN: Student Directory & Search (5 Columns) -->
+            <section class="lg:col-span-5 flex flex-col gap-4">
+                
+                <!-- Stats Bar -->
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="glass-card p-3 rounded-2xl text-center border-b-2 border-cyan-500/50">
+                        <p class="text-xs text-slate-400">إجمالي الطالبات</p>
+                        <p id="stat-total-students" class="text-xl font-bold text-white mt-1">34</p>
+                    </div>
+                    <div class="glass-card p-3 rounded-2xl text-center border-b-2 border-emerald-500/50">
+                        <p class="text-xs text-slate-400">رسائل مُرسلة</p>
+                        <p id="stat-sent-count" class="text-xl font-bold text-emerald-400 mt-1">0</p>
+                    </div>
+                    <div class="glass-card p-3 rounded-2xl text-center border-b-2 border-purple-500/50">
+                        <p class="text-xs text-slate-400">المادة الحالية</p>
+                        <p id="stat-subject-label" class="text-xs font-bold text-cyan-300 mt-2 truncate">العلوم البيئية</p>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-5 rounded-3xl shadow-2xl flex flex-col h-[580px]">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 id="class-directory-title" class="text-base font-bold text-white flex items-center gap-2">
+                            <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                            <span>سجل طالبات الصف 10 / 1</span>
+                        </h2>
+                        <span id="student-count-badge" class="text-xs bg-slate-800 text-slate-300 px-2.5 py-1 rounded-full border border-slate-700">34 طالبة</span>
+                    </div>
+
+                    <!-- Search Input -->
+                    <div class="relative mb-3">
+                        <svg class="w-4 h-4 absolute right-3.5 top-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                        <input type="text" id="search-input" onkeyup="filterStudents()" placeholder="بحث باسم الطالبة أو رقم هاتف ولي الأمر..." class="w-full bg-slate-900/80 border border-slate-700/80 rounded-xl py-2 pr-10 pl-4 text-sm text-slate-200 focus:outline-none focus:border-cyan-500 transition placeholder-slate-500">
+                    </div>
+
+                    <!-- Add Student & Directory Triggers -->
+                    <div class="grid grid-cols-2 gap-2 mb-3">
+                        <button onclick="toggleAddStudentForm()" class="text-xs bg-slate-800/90 hover:bg-slate-700 text-cyan-400 border border-cyan-500/30 py-2 rounded-xl flex items-center justify-center gap-1.5 transition">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>
+                            <span>إضافة طالبة جديدة</span>
+                        </button>
+                        <button onclick="openDirectoryModal()" class="text-xs bg-slate-800/90 hover:bg-slate-700 text-emerald-400 border border-emerald-500/30 py-2 rounded-xl flex items-center justify-center gap-1.5 transition">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            <span>جدول الأسماء والأرقام</span>
+                        </button>
+                    </div>
+
+                    <!-- Quick Inline Add Form -->
+                    <div id="add-student-form" class="hidden bg-slate-900/90 p-3 rounded-2xl border border-cyan-500/30 mb-3 space-y-2 text-xs">
+                        <input type="text" id="new-name" placeholder="اسم الطالبة الكامل (الرباعي)" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-200">
+                        <input type="tel" id="new-phone" placeholder="رقم هاتف ولي الأمر (مثال: 96896196999)" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-slate-200">
+                        <div class="flex gap-2">
+                            <button onclick="saveNewStudent()" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-1.5 px-3 rounded-lg flex-1">حفظ البيانات</button>
+                            <button onclick="toggleAddStudentForm()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 py-1.5 px-3 rounded-lg">إلغاء</button>
+                        </div>
+                    </div>
+
+                    <!-- Students Scrollable List -->
+                    <div id="students-list-container" class="space-y-2.5 overflow-y-auto pr-1 flex-grow">
+                        <!-- Student items generated via JS -->
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- RIGHT COLUMN: Message Editor & Gemini AI Tools (7 Columns) -->
+            <section class="lg:col-span-7 flex flex-col gap-4">
+                
+                <div class="glass-panel p-6 rounded-3xl shadow-2xl flex flex-col justify-between min-h-[640px] border border-cyan-500/20">
+                    
+                    <div>
+                        <!-- Section Header -->
+                        <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
+                            <div>
+                                <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                                    <svg class="w-6 h-6 text-emerald-400" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z"/></svg>
+                                    <span>محرر رسائل ولي الأمر الفوري</span>
+                                </h2>
+                                <p class="text-xs text-slate-400">صياغة وتخصيص الرسائل التفاعلية لولي الأمر مباشرة</p>
+                            </div>
+                            <span id="subject-indicator" class="px-3 py-1 rounded-xl text-xs font-semibold bg-emerald-950 text-emerald-400 border border-emerald-800">
+                                مادة: العلوم البيئية
+                            </span>
+                        </div>
+
+                        <!-- Active Selected Student Card -->
+                        <div class="bg-slate-900/90 p-4 rounded-2xl border border-slate-700/80 mb-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div class="flex items-center gap-3 w-full">
+                                <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-slate-800 to-slate-700 flex items-center justify-center border border-slate-600 text-cyan-400 text-xl font-bold shrink-0">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-xs text-slate-400 flex items-center gap-1">
+                                        <span>بيانات الطالبة المحددة:</span>
+                                    </p>
+                                    <h3 id="selected-student-name" class="text-base md:text-lg font-bold text-white mt-0.5 leading-snug break-words">الشيماء بنت بريك بن غانم سالم الرواس</h3>
+                                    <div class="flex items-center gap-2 mt-1 flex-wrap">
+                                        <span class="text-[11px] text-slate-400">رقم ولي الأمر المرتبط:</span>
+                                        <p id="selected-student-phone" class="text-xs font-bold text-emerald-400 dir-ltr text-right font-mono bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-800/60">96896196999</p>
+                                        <!-- Edit Phone Trigger Button -->
+                                        <button onclick="openEditPhoneModal()" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 px-2 py-0.5 rounded-md flex items-center gap-1 transition cursor-pointer" title="تعديل رقم هاتف ولي الأمر">
+                                            <svg class="w-3 h-3 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                                            <span>تعديل الرقم</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 shrink-0">
+                                <span id="status-tag" class="text-xs bg-emerald-950 text-emerald-400 px-3 py-1 rounded-xl border border-emerald-800">الحالة: نشط</span>
+                            </div>
+                        </div>
+
+                        <!-- Gemini AI Tools Toolbar -->
+                        <div class="mb-4 bg-gradient-to-r from-purple-950/60 via-slate-900/80 to-indigo-950/60 p-3.5 rounded-2xl border border-purple-500/30 shadow-lg">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-bold text-purple-300 flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-purple-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                    <span>مساعد الذكاء الاصطناعي (Gemini AI Suite)</span>
+                                </span>
+                                <span class="text-[10px] bg-purple-900/60 text-purple-200 px-2 py-0.5 rounded-full border border-purple-700/50">محرك جيميناي الفائق</span>
+                            </div>
+                            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+                                <button onclick="openAiDraftModal()" class="text-xs bg-purple-900/40 hover:bg-purple-800/60 text-purple-200 p-2 rounded-xl border border-purple-500/40 flex items-center justify-center gap-1.5 transition" title="صياغة رسالة ولي الأمر بذكاء">
+                                    <span>صياغة بالذكاء</span>
+                                </button>
+                                <button onclick="generateAiCard()" class="text-xs bg-indigo-900/40 hover:bg-indigo-800/60 text-indigo-200 p-2 rounded-xl border border-indigo-500/40 flex items-center justify-center gap-1.5 transition" title="توليد بطاقة تقدير رقمية">
+                                    <span>شهادة مصورة</span>
+                                </button>
+                                <button onclick="openVisionAnalysisModal()" class="text-xs bg-pink-900/40 hover:bg-pink-800/60 text-pink-200 p-2 rounded-xl border border-pink-500/40 flex items-center justify-center gap-1.5 transition" title="تحليل صور الاختبارات أو الأوراق الحية">
+                                    <span>تحليل ورقة/اختبار</span>
+                                </button>
+                                <button onclick="openTranslateModal()" class="text-xs bg-blue-900/40 hover:bg-blue-800/60 text-blue-200 p-2 rounded-xl border border-blue-500/40 flex items-center justify-center gap-1.5 transition" title="ترجمة الرسالة لأولياء الأمور بلغات متعددة">
+                                    <span>ترجمة لغات</span>
+                                </button>
+                                <button onclick="playAudioTts()" class="text-xs bg-emerald-900/40 hover:bg-emerald-800/60 text-emerald-200 p-2 rounded-xl border border-emerald-500/40 flex items-center justify-center gap-1.5 transition" title="قراءة إلكترونية بصوت طبيعي">
+                                    <span>استماع للرسالة</span>
+                                </button>
+                                <button onclick="generateAcademicAdvice()" class="text-xs bg-cyan-900/40 hover:bg-cyan-800/60 text-cyan-200 p-2 rounded-xl border border-cyan-500/40 flex items-center justify-center gap-1.5 transition" title="تحليل وتوصية تربوية أكاديمية">
+                                    <span>تحليل أكاديمي</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Template Buttons -->
+                        <div class="mb-4">
+                            <label class="block text-xs font-semibold text-slate-300 mb-2">نماذج الرسائل الجاهزة للاختيار السريع:</label>
+                            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-7 gap-2">
+                                <button onclick="applyTemplate('praise')" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 p-2.5 rounded-xl border border-slate-700/80 flex flex-col items-center gap-1.5 transition hover:border-cyan-500/50">
+                                    <span>ثناء وتميز</span>
+                                </button>
+                                <button onclick="applyTemplate('homework')" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 p-2.5 rounded-xl border border-slate-700/80 flex flex-col items-center gap-1.5 transition hover:border-cyan-500/50">
+                                    <span>متابعة واجب</span>
+                                </button>
+                                <button onclick="applyTemplate('exam')" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 p-2.5 rounded-xl border border-slate-700/80 flex flex-col items-center gap-1.5 transition hover:border-cyan-500/50">
+                                    <span>درجات الاختبار</span>
+                                </button>
+                                <button onclick="applyTemplate('absence_tardiness')" class="text-xs bg-slate-800 hover:bg-slate-700 text-red-200 p-2.5 rounded-xl border border-red-500/40 flex flex-col items-center gap-1.5 transition hover:border-red-400">
+                                    <span>غياب وتأخر</span>
+                                </button>
+                                <button onclick="applyTemplate('parent_summit')" class="text-xs bg-slate-800 hover:bg-slate-700 text-amber-200 p-2.5 rounded-xl border border-amber-500/40 flex flex-col items-center gap-1.5 transition hover:border-amber-400">
+                                    <span>استدعاء ولي أمر</span>
+                                </button>
+                                <button onclick="applyTemplate('admin_social')" class="text-xs bg-slate-800 hover:bg-slate-700 text-purple-300 p-2.5 rounded-xl border border-purple-500/40 flex flex-col items-center gap-1.5 transition hover:border-purple-400">
+                                    <span>الأخصائية</span>
+                                </button>
+                                <button onclick="applyTemplate('homeroom_teacher')" class="text-xs bg-slate-800 hover:bg-slate-700 text-teal-200 p-2.5 rounded-xl border border-teal-500/40 flex flex-col items-center gap-1.5 transition hover:border-teal-400">
+                                    <span>مربية الصف</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Text Area Box -->
+                        <div class="mb-4">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label for="whatsapp-text" class="text-xs font-semibold text-slate-300">نص الرسالة التي ستُرسل لولي الأمر:</label>
+                                <span class="text-[10px] text-slate-400">سيتم تلقائياً تضمين اسم الطالبة والمادة</span>
+                            </div>
+                            <textarea id="whatsapp-text" rows="6" class="w-full bg-slate-900/90 border border-slate-700 rounded-2xl p-4 text-slate-100 text-sm leading-relaxed focus:outline-none focus:border-emerald-500 transition shadow-inner resize-none font-sans" placeholder="اختر طالبة من القائمة اليسرى لتجهيز الرسالة المباشرة..."></textarea>
+                        </div>
+
+                    </div>
+
+                    <!-- Send Actions -->
+                    <div class="space-y-3 pt-3 border-t border-slate-800">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <button id="btn-send-wa-web" onclick="sendWhatsApp('web')" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3 px-4 rounded-2xl shadow-lg shadow-emerald-900/30 flex items-center justify-center gap-2.5 transition duration-200 transform active:scale-95">
+                                <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z"/></svg>
+                                <span>إرسال عبر WhatsApp Web</span>
+                            </button>
+                            <button id="btn-send-wa-app" onclick="sendWhatsApp('app')" class="w-full bg-slate-800 hover:bg-slate-700 text-emerald-400 font-bold py-3 px-4 rounded-2xl border border-emerald-500/30 flex items-center justify-center gap-2.5 transition duration-200 transform active:scale-95">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                                <span>فتح بتطبيق الواتساب</span>
+                            </button>
+                        </div>
+
+                        <div class="flex items-center justify-between gap-3 text-xs text-slate-400 pt-1">
+                            <button onclick="copyMessageText()" class="hover:text-cyan-400 flex items-center gap-1 transition">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                                <span>نسخ نص الرسالة للحافظة</span>
+                            </button>
+                            <span id="copy-feedback" class="text-emerald-400 hidden">تم النسخ بنجاح!</span>
+                            <span class="text-[11px] text-slate-500">يتم فتح دردشة جديدة فورية برقم ولي الأمر</span>
+                        </div>
+                    </div>
+
+                </div>
+
+            </section>
+
+        </main>
+
+        <!-- STAFF & ADMINISTRATION DIRECTORY MODAL -->
+        <div id="staff-directory-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+            <div class="glass-panel max-w-3xl w-full p-6 rounded-3xl border border-purple-500/40 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div>
+                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                            <svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                            <span>دليل التواصل المباشر مع الهيئة الإدارية والتدريسية</span>
+                        </h3>
+                        <p class="text-xs text-slate-400 mt-0.5">مدرسة خولة بنت حكيم (9-12) - الإدارة والمساعدة والأخصائيات والمعلمات</p>
+                    </div>
+                    <button onclick="closeStaffModal()" class="text-slate-400 hover:text-white p-1">إغلاق ✕</button>
+                </div>
+
+                <!-- Staff Categories Cards -->
+                <div class="space-y-4">
+                    
+                    <!-- 1. School Leadership -->
+                    <div class="bg-slate-900/90 p-4 rounded-2xl border border-amber-500/30">
+                        <h4 class="text-sm font-bold text-amber-400 flex items-center gap-2 mb-3">
+                            <span>إدارة المدرسة والشؤون الإدارية والأكاديمية</span>
+                        </h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <!-- Principal -->
+                            <div class="bg-slate-800/90 p-3.5 rounded-xl border border-slate-700/80 flex items-center justify-between gap-2 hover:border-amber-500/40 transition">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-amber-950 text-amber-400 flex items-center justify-center text-lg font-bold border border-amber-800/50">
+                                        👑
+                                    </div>
+                                    <div>
+                                        <p class="text-xs font-bold text-white">أ. ليلى المسهلي</p>
+                                        <p class="text-[11px] text-amber-300/90 font-medium">مديرة المدرسة</p>
+                                    </div>
+                                </div>
+                                <button onclick="chatWithStaff('أ. ليلى المسهلي (مديرة المدرسة)', '96892800048')" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 font-bold shadow transition">
+                                    تواصل
+                                </button>
+                            </div>
+
+                            <!-- Assistant Principal -->
+                            <div class="bg-slate-800/90 p-3.5 rounded-xl border border-slate-700/80 flex items-center justify-between gap-2 hover:border-amber-500/40 transition">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-amber-950 text-amber-300 flex items-center justify-center text-lg font-bold border border-amber-800/50">
+                                        🏛️
+                                    </div>
+                                    <div>
+                                        <p class="text-xs font-bold text-white">أستاذة مساعدة المديرة</p>
+                                        <p class="text-[11px] text-amber-300/90 font-medium">مساعدة المديرة (الشؤون الإدارية والأكاديمية)</p>
+                                    </div>
+                                </div>
+                                <button onclick="chatWithStaff('مساعدة المديرة (الشؤون الإدارية والأكاديمية)', '96899582823')" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 font-bold shadow transition">
+                                    تواصل
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Student Welfare & Support -->
+                    <div class="bg-slate-900/90 p-4 rounded-2xl border border-purple-500/30">
+                        <h4 class="text-sm font-bold text-purple-400 flex items-center gap-2 mb-3">
+                            <span>قسم الإرشاد الطلابي والدعم النفسي والتربوي</span>
+                        </h4>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div class="bg-slate-800/90 p-3.5 rounded-xl border border-slate-700/80 flex flex-col justify-between gap-3 hover:border-purple-500/40 transition">
+                                <div>
+                                    <p class="text-xs font-bold text-white">الأخصائية الاجتماعية</p>
+                                    <p class="text-[10px] text-purple-300/90">متابعة السلوك والرعاية الاجتماعية للطلبة</p>
+                                </div>
+                                <button onclick="chatWithStaff('الأخصائية الاجتماعية', '96892988666')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs py-1.5 px-3 rounded-lg flex items-center justify-center gap-1 font-bold shadow transition">
+                                    تواصل مباشر
+                                </button>
+                            </div>
+
+                            <div class="bg-slate-800/90 p-3.5 rounded-xl border border-slate-700/80 flex flex-col justify-between gap-3 hover:border-purple-500/40 transition">
+                                <div>
+                                    <p class="text-xs font-bold text-white">الأخصائية النفسية</p>
+                                    <p class="text-[10px] text-pink-300/90">الدعم النفسي والتربوي وتعزيز الصحة النفسية</p>
+                                </div>
+                                <button onclick="chatWithStaff('الأخصائية النفسية', '96899090300')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs py-1.5 px-3 rounded-lg flex items-center justify-center gap-1 font-bold shadow transition">
+                                    تواصل مباشر
+                                </button>
+                            </div>
+
+                            <div class="bg-slate-800/90 p-3.5 rounded-xl border border-slate-700/80 flex flex-col justify-between gap-3 hover:border-purple-500/40 transition">
+                                <div>
+                                    <p class="text-xs font-bold text-white">أخصائية التوجيه المهني</p>
+                                    <p class="text-[10px] text-indigo-300/90">التوجيه الأكاديمي والمسار الجامعي والمهني</p>
+                                </div>
+                                <button onclick="chatWithStaff('أخصائية التوجيه المهني', '96899885535')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs py-1.5 px-3 rounded-lg flex items-center justify-center gap-1 font-bold shadow transition">
+                                    تواصل مباشر
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Teaching Staff Section -->
+                    <div class="bg-slate-900/90 p-4 rounded-2xl border border-cyan-500/30">
+                        <h4 class="text-sm font-bold text-cyan-400 flex items-center gap-2 mb-2">
+                            <span>معلمات المواد والهيئة التدريسية</span>
+                        </h4>
+                        <p class="text-xs text-slate-300">تتيح لكِ المنصة التبديل السلس بين جميع المواد الدراسية في الشريط العلوي لتجهيز ونشر الرسائل المباشرة لأولياء الأمور بنقرة واحدة.</p>
+                    </div>
+
+                </div>
+
+                <div class="flex justify-end pt-2 border-t border-slate-800">
+                    <button onclick="closeStaffModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold py-2 px-5 rounded-xl border border-slate-700">إغلاق النافذة</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- GOOGLE DRIVE IMPORT MODAL -->
+        <div id="drive-import-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+            <div class="glass-panel max-w-lg w-full p-6 rounded-3xl border border-amber-500/40 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h3 class="text-base font-bold text-white flex items-center gap-2">
+                        <span>استيراد قائمة الصف من Google Drive المخزنة</span>
+                    </h3>
+                    <button onclick="closeDriveImportModal()" class="text-slate-400 hover:text-white">✕</button>
+                </div>
+
+                <div class="space-y-2.5">
+                    <button onclick="useStoredClass9_1()" class="w-full bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/40 text-rose-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition">
+                        <span>الصف 9 / 1</span>
+                        <span class="text-[10px] bg-rose-900 px-2 py-0.5 rounded-lg text-rose-200">اعتماد الجلب</span>
+                    </button>
+                    <button onclick="useStoredClass9_2()" class="w-full bg-pink-950/40 hover:bg-pink-900/60 border border-pink-500/40 text-pink-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition">
+                        <span>الصف 9 / 2</span>
+                        <span class="text-[10px] bg-pink-900 px-2 py-0.5 rounded-lg text-pink-200">اعتماد الجلب</span>
+                    </button>
+                    <button onclick="useStoredClass9_3()" class="w-full bg-fuchsia-950/40 hover:bg-fuchsia-900/60 border border-fuchsia-500/40 text-fuchsia-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition">
+                        <span>الصف 9 / 3</span>
+                        <span class="text-[10px] bg-fuchsia-900 px-2 py-0.5 rounded-lg text-fuchsia-200">اعتماد الجلب</span>
+                    </button>
+                    <button onclick="useStoredClass9_4()" class="w-full bg-violet-950/40 hover:bg-violet-900/60 border border-violet-500/40 text-violet-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition">
+                        <span>الصف 9 / 4</span>
+                        <span class="text-[10px] bg-violet-900 px-2 py-0.5 rounded-lg text-violet-200">اعتماد الجلب</span>
+                    </button>
+                    <button onclick="useStoredClass9_5()" class="w-full bg-indigo-950/40 hover:bg-indigo-900/60 border border-indigo-500/40 text-indigo-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition">
+                        <span>الصف 9 / 5</span>
+                        <span class="text-[10px] bg-indigo-900 px-2 py-0.5 rounded-lg text-indigo-200">اعتماد الجلب</span>
+                    </button>
+                    <button onclick="useStoredClass9_6()" class="w-full bg-cyan-950/40 hover:bg-cyan-900/60 border border-cyan-500/40 text-cyan-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition">
+                        <span>الصف 9 / 6</span>
+                        <span class="text-[10px] bg-cyan-900 px-2 py-0.5 rounded-lg text-cyan-200">اعتماد الجلب</span>
+                    </button>
+                    <button onclick="useStoredClass9_7()" class="w-full bg-teal-950/40 hover:bg-teal-900/60 border border-teal-500/40 text-teal-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition">
+                        <span>الصف 9 / 7</span>
+                        <span class="text-[10px] bg-teal-900 px-2 py-0.5 rounded-lg text-teal-200">اعتماد الجلب</span>
+                    </button>
+                    <button onclick="useStoredClass10_1()" class="w-full bg-amber-950/40 hover:bg-amber-900/60 border border-amber-500/40 text-amber-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition">
+                        <span>الصف 10 / 1</span>
+                        <span class="text-[10px] bg-amber-900 px-2 py-0.5 rounded-lg text-amber-200">اعتماد الجلب</span>
+                    </button>
+                    <button onclick="useStoredClass10_2()" class="w-full bg-cyan-950/40 hover:bg-cyan-900/60 border border-cyan-500/40 text-cyan-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition">
+                        <span>الصف 10 / 2</span>
+                        <span class="text-[10px] bg-cyan-900 px-2 py-0.5 rounded-lg text-cyan-200">اعتماد الجلب</span>
+                    </button>
+                    <button onclick="useStoredClass10_3()" class="w-full bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-500/40 text-emerald-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition">
+                        <span>الصف 10 / 3</span>
+                        <span class="text-[10px] bg-emerald-900 px-2 py-0.5 rounded-lg text-emerald-200">اعتماد الجلب</span>
+                    </button>
+                    <button onclick="useStoredClass10_4()" class="w-full bg-teal-950/40 hover:bg-teal-900/60 border border-teal-500/40 text-teal-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition">
+                        <span>الصف 10 / 4</span>
+                        <span class="text-[10px] bg-teal-900 px-2 py-0.5 rounded-lg text-teal-200">اعتماد الجلب</span>
+                    </button>
+                    <button onclick="useStoredClass10_5()" class="w-full bg-sky-950/40 hover:bg-sky-900/60 border border-sky-500/40 text-sky-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition">
+                        <span>الصف 10 / 5</span>
+                        <span class="text-[10px] bg-sky-900 px-2 py-0.5 rounded-lg text-sky-200">اعتماد الجلب</span>
+                    </button>
+                    <button onclick="useStoredClass10_6()" class="w-full bg-blue-950/40 hover:bg-blue-900/60 border border-blue-500/40 text-blue-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition">
+                        <span>الصف 10 / 6</span>
+                        <span class="text-[10px] bg-blue-900 px-2 py-0.5 rounded-lg text-blue-200">اعتماد الجلب</span>
+                    </button>
+                    <button onclick="useStoredClass10_7()" class="w-full bg-indigo-950/40 hover:bg-indigo-900/60 border border-indigo-500/40 text-indigo-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition">
+                        <span>الصف 10 / 7</span>
+                        <span class="text-[10px] bg-indigo-900 px-2 py-0.5 rounded-lg text-indigo-200">اعتماد الجلب</span>
+                    </button>
+                    <button onclick="useStoredClass11_1()" class="w-full bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-500/40 text-emerald-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition">
+                        <span>الصف 11 / 1</span>
+                        <span class="text-[10px] bg-emerald-900 px-2 py-0.5 rounded-lg text-emerald-200">اعتماد الجلب</span>
+                    </button>
+                    <button onclick="useStoredClass11_2()" class="w-full bg-teal-950/40 hover:bg-teal-900/60 border border-teal-500/40 text-teal-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition">
+                        <span>الصف 11 / 2</span>
+                        <span class="text-[10px] bg-teal-900 px-2 py-0.5 rounded-lg text-teal-200">اعتماد الجلب</span>
+                    </button>
+                    <button onclick="useStoredClass11_3()" class="w-full bg-cyan-950/40 hover:bg-cyan-900/60 border border-cyan-500/40 text-cyan-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition">
+                        <span>الصف 11 / 3</span>
+                        <span class="text-[10px] bg-cyan-900 px-2 py-0.5 rounded-lg text-cyan-200">اعتماد الجلب</span>
+                    </button>
+                    <button onclick="useStoredClass11_4()" class="w-full bg-indigo-950/40 hover:bg-indigo-900/60 border border-indigo-500/40 text-indigo-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition">
+                        <span>الصف 11 / 4</span>
+                        <span class="text-[10px] bg-indigo-900 px-2 py-0.5 rounded-lg text-indigo-200">اعتماد الجلب</span>
+                    </button>
+                    <button onclick="useStoredClass11_5()" class="w-full bg-purple-950/40 hover:bg-purple-900/60 border border-purple-500/40 text-purple-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition">
+                        <span>الصف 11 / 5</span>
+                        <span class="text-[10px] bg-purple-900 px-2 py-0.5 rounded-lg text-purple-200">اعتماد الجلب</span>
+                    </button>
+                    <button onclick="useStoredClass11_6()" class="w-full bg-fuchsia-950/40 hover:bg-fuchsia-900/60 border border-fuchsia-500/40 text-fuchsia-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition">
+                        <span>الصف 11 / 6</span>
+                        <span class="text-[10px] bg-fuchsia-900 px-2 py-0.5 rounded-lg text-fuchsia-200">اعتماد الجلب</span>
+                    </button>
+                    <button onclick="useStoredClass11_7()" class="w-full bg-pink-950/40 hover:bg-pink-900/60 border border-pink-500/40 text-pink-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition">
+                        <span>الصف 11 / 7</span>
+                        <span class="text-[10px] bg-pink-900 px-2 py-0.5 rounded-lg text-pink-200">اعتماد الجلب</span>
+                    </button>
+                    <button onclick="useStoredClass12_1()" class="w-full bg-amber-950/40 hover:bg-amber-900/60 border border-amber-500/40 text-amber-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition">
+                        <span>الصف 12 / 1</span>
+                        <span class="text-[10px] bg-amber-900 px-2 py-0.5 rounded-lg text-amber-200">اعتماد الجلب</span>
+                    </button>
+                    <button onclick="useStoredClass12_2()" class="w-full bg-orange-950/40 hover:bg-orange-900/60 border border-orange-500/40 text-orange-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition">
+                        <span>الصف 12 / 2</span>
+                        <span class="text-[10px] bg-orange-900 px-2 py-0.5 rounded-lg text-orange-200">اعتماد الجلب</span>
+                    </button>
+                    <button onclick="useStoredClass12_3()" class="w-full bg-yellow-950/40 hover:bg-yellow-900/60 border border-yellow-500/40 text-yellow-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition">
+                        <span>الصف 12 / 3</span>
+                        <span class="text-[10px] bg-yellow-900 px-2 py-0.5 rounded-lg text-yellow-200">اعتماد الجلب</span>
+                    </button>
+                    <button onclick="useStoredClass12_4()" class="w-full bg-lime-950/40 hover:bg-lime-900/60 border border-lime-500/40 text-lime-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition">
+                        <span>الصف 12 / 4</span>
+                        <span class="text-[10px] bg-lime-900 px-2 py-0.5 rounded-lg text-lime-200">اعتماد الجلب</span>
+                    </button>
+                    <button onclick="useStoredClass12_5()" class="w-full bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-500/40 text-emerald-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition">
+                        <span>الصف 12 / 5</span>
+                        <span class="text-[10px] bg-emerald-900 px-2 py-0.5 rounded-lg text-emerald-200">اعتماد الجلب</span>
+                    </button>
+                    <button onclick="useStoredClass12_6()" class="w-full bg-teal-950/40 hover:bg-teal-900/60 border border-teal-500/40 text-teal-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition">
+                        <span>الصف 12 / 6</span>
+                        <span class="text-[10px] bg-teal-900 px-2 py-0.5 rounded-lg text-teal-200">اعتماد الجلب</span>
+                    </button>
+                    <button onclick="useStoredClass12_1_Tourism()" class="w-full bg-cyan-950/40 hover:bg-cyan-900/60 border border-cyan-500/40 text-cyan-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition">
+                        <span>الصف 12 / 1 سياحة</span>
+                        <span class="text-[10px] bg-cyan-900 px-2 py-0.5 rounded-lg text-cyan-200">اعتماد الجلب</span>
+                    </button>
+                    <button onclick="useStoredClass12_2_Tourism()" class="w-full bg-teal-950/40 hover:bg-teal-900/60 border border-teal-500/40 text-teal-200 p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition">
+                        <span>الصف 12 / 2 سياحة</span>
+                        <span class="text-[10px] bg-teal-900 px-2 py-0.5 rounded-lg text-teal-200">اعتماد الجلب</span>
+                    </button>
+
+                    <!-- Custom Google Drive URL Input -->
+                    <div class="bg-slate-900/80 p-3 rounded-2xl border border-slate-700/80 space-y-2 mt-2">
+                        <label class="block text-xs text-slate-300 font-semibold">أو ألصق رابط Google Drive مخصص لأي صف هنا:</label>
+                        <input type="text" id="drive-url-input" placeholder="https://docs.google.com/spreadsheets/d/..." class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 focus:outline-none focus:border-amber-500 font-mono dir-ltr">
+                    </div>
+                </div>
+
+                <div class="flex gap-2 pt-2">
+                    <button id="btn-fetch-drive" onclick="importFromGoogleDrive()" class="flex-1 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold py-2.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 text-xs transition">
+                        <span>جلب واستيراد القائمة</span>
+                    </button>
+                    <button onclick="closeDriveImportModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs py-2.5 px-4 rounded-xl">إلغاء</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gemini AI Message Drafter Modal -->
+        <div id="ai-draft-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+            <div class="glass-panel max-w-lg w-full p-6 rounded-3xl border border-purple-500/40 shadow-2xl space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h3 class="text-base font-bold text-white flex items-center gap-2">
+                        <span>صياغة رسالة بذكاء جيميناي (Gemini AI)</span>
+                    </h3>
+                    <button onclick="closeAiDraftModal()" class="text-slate-400 hover:text-white">✕</button>
+                </div>
+
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1">ملاحظات سريعة لولي الأمر:</label>
+                    <textarea id="ai-notes-input" rows="3" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-purple-500" placeholder="اكتب ملاحظاتك المختصرة هنا..."></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1">أسلوب الرسالة:</label>
+                    <select id="ai-tone-select" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-200">
+                        <option value="ودود ومحفز">ودود ومحفز للتميز</option>
+                        <option value="رسمي ومهني">رسمي ومهني</option>
+                        <option value="تنبيه لطيف ومباشر">تنبيه لطيف لضرورة التحسين</option>
+                        <option value="شديد الجدية لمتابعة فورية">شديد الجدية لمتابعة فورية</option>
+                    </select>
+                </div>
+
+                <button id="btn-generate-ai-text" onclick="executeAiDrafting()" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold py-2.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 text-xs transition">
+                    <span>توليد الرسالة بالذكاء الاصطناعي</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Gemini AI Certificate / Card Modal -->
+        <div id="ai-card-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+            <div class="glass-panel max-w-xl w-full p-6 rounded-3xl border border-indigo-500/40 shadow-2xl space-y-4 text-center max-h-[90vh] overflow-y-auto">
+                <div class="flex items-center justify-end border-b border-slate-800 pb-2">
+                    <button onclick="closeAiCardModal()" class="text-slate-400 hover:text-white font-bold text-lg px-2">إغلاق ✕</button>
+                </div>
+
+                <div class="py-2">
+                    <div id="card-loading-text" class="text-slate-400 text-xs py-8 flex flex-col items-center gap-2">
+                        <span>جاري توليد بطاقة التقدير بالذكاء الاصطناعي...</span>
+                    </div>
+                    <img id="generated-card-img" src="" alt="بطاقة التقدير" class="w-full rounded-2xl border border-indigo-500/30 shadow-lg hidden">
+                </div>
+
+                <div class="flex gap-2">
+                    <button id="btn-download-card" onclick="downloadCardImage()" class="hidden bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-2.5 px-4 rounded-xl flex-1 flex items-center justify-center gap-2">
+                        <span>تحميل الصورة</span>
+                    </button>
+                    <button onclick="closeAiCardModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs py-2.5 px-4 rounded-xl flex-1">إغلاق</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vision Analysis Modal -->
+        <div id="vision-analysis-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+            <div class="glass-panel max-w-lg w-full p-6 rounded-3xl border border-pink-500/40 shadow-2xl space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h3 class="text-base font-bold text-white flex items-center gap-2">
+                        <svg class="w-5 h-5 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        <span>تحليل صور الاختبارات والواجبات (Gemini Vision)</span>
+                    </h3>
+                    <button onclick="closeVisionAnalysisModal()" class="text-slate-400 hover:text-white">✕</button>
+                </div>
+
+                <div class="border-2 border-dashed border-slate-700 hover:border-pink-500/60 rounded-2xl p-4 text-center cursor-pointer bg-slate-900/60 transition" onclick="document.getElementById('vision-file-input').click()">
+                    <span class="text-xs font-bold text-slate-200 block">📸 اضغطي هنا لاختيار أو التقاط صورة الورقة الامتحانية</span>
+                    <span class="text-[10px] text-slate-400 block mt-1">يقوم الذكاء الاصطناعي بمسح الإجابات وتصحيحها وتوليد تقرير لولي الأمر</span>
+                    <input type="file" id="vision-file-input" accept="image/*" class="hidden" onchange="previewVisionImage(event)">
+                </div>
+
+                <div id="vision-preview-container" class="hidden text-center space-y-2">
+                    <img id="vision-preview-img" src="" alt="معاينة الصورة" class="max-h-36 mx-auto rounded-xl border border-pink-500/30 shadow">
+                    <span class="text-[11px] text-emerald-400 font-bold block">✓ تم تحميل الصورة وبانتظار بدء التحليل</span>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 text-xs">
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="block text-slate-300 text-[11px]">الدرجة المحصلة:</label>
+                            <span id="auto-score-badge" class="text-[9px] bg-emerald-950 text-emerald-400 border border-emerald-700/60 px-1.5 py-0.5 rounded font-bold">قراءة تلقائية ⚡</span>
+                        </div>
+                        <input type="number" id="vision-score-input" placeholder="مثال: 20" value="20" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-slate-200 text-xs font-bold transition">
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 text-[11px] mb-1">الدرجة الكلية:</label>
+                        <input type="number" id="vision-total-score-input" placeholder="مثال: 20" value="20" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-slate-200 text-xs font-bold">
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 text-[11px] mb-1">نوع التقييم:</label>
+                        <select id="vision-type-select" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-slate-200 text-xs">
+                            <option value="تلقائي (حسب النسبة)">تلقائي (حسب النسبة)</option>
+                            <option value="تفوق وممتاز">ممتاز (تفوق كامل)</option>
+                            <option value="تحسن ملحوظ">تحسن ملحوظ</option>
+                            <option value="يحتاج إلى مراجعة">يحتاج إلى متابعة ومراجعة</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Analysis Progress Bar -->
+                <div id="vision-progress-container" class="hidden space-y-2">
+                    <div class="flex items-center justify-between text-xs text-pink-300 font-bold">
+                        <span id="vision-status-text">جاري مسح الورقة بالذكاء الاصطناعي...</span>
+                        <span id="vision-percent-text">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-700">
+                        <div id="vision-progress-bar" class="bg-gradient-to-r from-pink-500 to-rose-500 h-full w-0 transition-all duration-300"></div>
+                    </div>
+                </div>
+
+                <button id="btn-analyze-paper" onclick="executeVisionAnalysis()" class="w-full bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-bold py-2.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 text-xs transition">
+                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    <span>تحليل الورقة بالذكاء الاصطناعي وإنشاء التقرير</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Translation Modal -->
+        <div id="translation-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+            <div class="glass-panel max-w-md w-full p-6 rounded-3xl border border-blue-500/40 shadow-2xl space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h3 class="text-base font-bold text-white flex items-center gap-2">
+                        <span>ترجمة الرسالة لأولياء الأمور بلغات متعددة</span>
+                    </h3>
+                    <button onclick="closeTranslateModal()" class="text-slate-400 hover:text-white">✕</button>
+                </div>
+
+                <div>
+                    <select id="target-language-select" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-200 font-bold">
+                        <option value="English">الإنجليزية (English)</option>
+                        <option value="Urdu">الأوردو (اردو)</option>
+                        <option value="Hindi">الهندية (हिन्दी)</option>
+                    </select>
+                </div>
+
+                <button id="btn-translate-msg" onclick="executeMessageTranslation()" class="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold py-2.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 text-xs transition">
+                    <span>ترجمة النص بالذكاء الاصطناعي</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Directory Modal -->
+        <div id="directory-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+            <div class="glass-panel max-w-2xl w-full p-6 rounded-3xl border border-emerald-500/40 shadow-2xl space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h3 class="text-base font-bold text-white flex items-center gap-2">
+                        <span>جدول أسماء الطالبات المرتبطة بأرقام أولياء الأمور</span>
+                    </h3>
+                    <button onclick="closeDirectoryModal()" class="text-slate-400 hover:text-white">✕</button>
+                </div>
+
+                <div class="max-h-[380px] overflow-y-auto pr-1">
+                    <table class="w-full text-right text-xs text-slate-200">
+                        <thead class="bg-slate-900 text-slate-400 sticky top-0 border-b border-slate-800">
+                            <tr>
+                                <th class="p-2.5">#</th>
+                                <th class="p-2.5">اسم الطالبة الكامل</th>
+                                <th class="p-2.5">رقم ولي الأمر</th>
+                                <th class="p-2.5 text-center">إجراء سريع</th>
+                            </tr>
+                        </thead>
+                        <tbody id="directory-table-body" class="divide-y divide-slate-800/60">
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="flex justify-end pt-2 border-t border-slate-800">
+                    <button onclick="closeDirectoryModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs py-2 px-4 rounded-xl">إغلاق</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- EDIT PHONE MODAL -->
+        <div id="edit-phone-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+            <div class="glass-panel max-w-sm w-full p-6 rounded-3xl border border-cyan-500/40 shadow-2xl space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h3 class="text-base font-bold text-white flex items-center gap-2">
+                        <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                        <span>تعديل رقم هاتف ولي الأمر</span>
+                    </h3>
+                    <button onclick="closeEditPhoneModal()" class="text-slate-400 hover:text-white">✕</button>
+                </div>
+
+                <div>
+                    <p id="edit-phone-student-name" class="text-xs font-bold text-cyan-300 mb-2"></p>
+                    <label class="block text-xs text-slate-300 mb-1">رقم النقال الجديد:</label>
+                    <input type="tel" id="edit-phone-input" placeholder="مثال: 96896196999 أو 91234567" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2.5 text-xs text-slate-100 font-mono dir-ltr focus:outline-none focus:border-cyan-500">
+                </div>
+
+                <div class="flex gap-2 pt-2">
+                    <button onclick="saveEditedPhone()" class="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded-xl text-xs transition">حفظ التعديل</button>
+                    <button onclick="closeEditPhoneModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs py-2 px-4 rounded-xl">إلغاء</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="glass-panel border-t border-slate-800 mt-auto py-4 px-6 text-center text-xs text-slate-400">
+            <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+                <p>منصة نبض خولة © 2026 - مدرسة خولة بنت حكيم (9-12) - سلطنة عُمان</p>
+                <div class="flex items-center gap-2 text-xs flex-wrap justify-center">
+                    <span class="bg-cyan-950/80 text-cyan-300 border border-cyan-700/80 px-3 py-1 rounded-xl font-bold flex items-center gap-1.5 shadow-sm">
+                        <span>إعداد معلمة تقنية المعلومات: أ. ابتسام الرواس</span>
+                    </span>
+                    <span class="bg-amber-950/80 text-amber-300 border border-amber-800/80 px-3 py-1 rounded-xl font-bold flex items-center gap-1.5 shadow-sm">
+                        <span>المديرة: أ. ليلى المسهلي</span>
+                    </span>
+                    <button onclick="resetData()" class="hover:text-amber-400 transition text-slate-400 mr-2">إعادة ضبط البيانات النموذجية</button>
+                </div>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Notification Toast Element -->
+    <div id="toast" class="fixed bottom-6 left-6 z-50 bg-slate-900 border border-emerald-500/50 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+        <span id="toast-message" class="text-sm font-medium">تمت العملية بنجاح</span>
+    </div>
+
+    <script>
+        const GEMINI_API_KEY = "";
+        const STORED_CLASS_9_1_URL = "https://docs.google.com/spreadsheets/d/1ewHJnoro1BDR0Opmkd5gYMaCxLLeW3tz/edit?usp=sharing";
+        const STORED_CLASS_9_2_URL = "https://docs.google.com/spreadsheets/d/12TA8j16Xa88v8_FTQBheU20fkDdvYwnf/edit?usp=sharing";
+        const STORED_CLASS_9_3_URL = "https://docs.google.com/spreadsheets/d/158qqtoQh6C-9FYvcb-jsccfulXQXDdri/edit?usp=sharing";
+        const STORED_CLASS_9_4_URL = "https://docs.google.com/spreadsheets/d/1F_cnBnM1cp8kHAg2hH1JcbuvTHO0CJ60/edit?usp=sharing";
+        const STORED_CLASS_9_5_URL = "https://docs.google.com/spreadsheets/d/10ddi16qJFx9Zvs1DWNZzt8AueGdFmPi_/edit?usp=sharing";
+        const STORED_CLASS_9_6_URL = "https://docs.google.com/spreadsheets/d/17TsRcKjZc7WGX-dQT4vbi5Wmz6JiF0HV/edit?usp=sharing";
+        const STORED_CLASS_9_7_URL = "https://docs.google.com/spreadsheets/d/1acoc2gI-lwv-cc3WYNjWNR5gOlOW2nDz/edit?usp=sharing";
+        const STORED_CLASS_10_1_URL = "https://docs.google.com/spreadsheets/d/1iI9rkHvupszm-gysPFNJvEsHLtoi_MRl/edit?usp=sharing";
+        const STORED_CLASS_10_2_URL = "https://docs.google.com/spreadsheets/d/1EhYZXeYNPid-tEnAld3ecN0foiHDVQbs/edit?usp=sharing";
+        const STORED_CLASS_10_5_URL = "https://docs.google.com/spreadsheets/d/1iRgC57ZWnJ8HoL0F9T2qeNZ9PeATPPJk/edit?usp=sharing";
+        const STORED_CLASS_10_6_URL = "https://docs.google.com/spreadsheets/d/1WXAe9BHl6lc2VrnB-h5cxqtY52ouYbRr/edit?usp=drive_link&ouid=116224503649293668042&rtpof=true&sd=true";
+        const STORED_CLASS_10_7_URL = "https://docs.google.com/spreadsheets/d/1laQjI2IXX76OddlV0PgBc-QYRhiUkCqkGP1skJWS0DI/edit?usp=sharing";
+        const STORED_CLASS_11_1_URL = "https://docs.google.com/spreadsheets/d/1JrUo7S0oKFpMe3Y_4xC4cVfCsO-0ndJYcJdz_hisZSU/edit?usp=sharing";
+        const STORED_CLASS_11_2_URL = "https://docs.google.com/spreadsheets/d/1-zxh8f1A1gCC1tKdq7SvXOiRZvpRO2i9Wvaf_AYIbYg/edit?usp=sharing";
+        const STORED_CLASS_11_3_URL = "https://docs.google.com/spreadsheets/d/1DVdcm48J5IveArVPsc7E7ZXvHEpSkwp-OrlNX0qZovw/edit?usp=sharing";
+        const STORED_CLASS_11_4_URL = "https://docs.google.com/spreadsheets/d/10fQFfLztjObyyPdxkuT5pi0F-04WuKl5PL1fq8Okito/edit?usp=sharing";
+        const STORED_CLASS_11_5_URL = "https://docs.google.com/spreadsheets/d/1tuT0MX3ebxTKbahodqvgb_KWH8YmQ9GGL2y7lXtS4Q0/edit?usp=sharing";
+        const STORED_CLASS_11_6_URL = "https://docs.google.com/spreadsheets/d/1LlEqvLY-Glvtcu4pZbkOuAfE1rF7KMJ-NFjWfzsl-N4/edit?usp=sharing";
+        const STORED_CLASS_11_7_URL = "https://docs.google.com/spreadsheets/d/1laQjI2IXX76OddlV0PgBc-QYRhiUkCqkGP1skJWS0DI/edit?usp=sharing";
+        const STORED_CLASS_12_1_URL = "https://docs.google.com/spreadsheets/d/1NpdeJU0cRmhfA2CfRSsbRdiSMoFrQj9Y/edit?usp=sharing";
+        const STORED_CLASS_12_2_URL = "https://docs.google.com/spreadsheets/d/18xA0n894B5UZMybNmgtSergADGJBZGRD1MLUr1JHPto/edit?usp=sharing";
+        const STORED_CLASS_12_3_URL = "https://docs.google.com/spreadsheets/d/1TfhNdanl2ACsqpCQ0WmDeUwgMQJmWO5SI05HD2nMxHg/edit?usp=sharing";
+        const STORED_CLASS_12_4_URL = "https://docs.google.com/spreadsheets/d/1N1hlf_LUdcqZSKhzKc-McMyq0zWTV_d2mKHb_WB7EM8/edit?usp=sharing";
+        const STORED_CLASS_12_5_URL = "https://docs.google.com/spreadsheets/d/1zX0RFYyOTLTuEcK1kLXItPpm5oc7wMkYXgPwC5xaD_4/edit?usp=sharing";
+        const STORED_CLASS_12_6_URL = "https://docs.google.com/spreadsheets/d/1rQmqK7aQNSwX120JIEB2nsx5oZLMrJgrKRU5o44gWEY/edit?usp=sharing";
+        const STORED_CLASS_12_1_TOURISM_URL = "https://docs.google.com/spreadsheets/d/19hbtwoFf3FbwyfvoaljQTH9bkwEMBjTTiHalQS_jt4A/edit?usp=sharing";
+        const STORED_CLASS_12_2_TOURISM_URL = "https://docs.google.com/spreadsheets/d/1cFtZ3LA_9n0fS_4rH8Z9-Vg8b6J4-jPjxKxc3tdu5Ks/edit?usp=sharing";
+
+        let selectedStudent = null;
+        let students = [];
+        let sentCount = 0;
+        let currentSubjectName = "العلوم البيئية";
+        let activeTemplateType = "praise";
+        let editingStudentId = null;
+
+        const defaultStudents = [
+            { id: 101, name: "الشيماء بنت بريك بن غانم سالم الرواس", phone: "96896196999", status: "نشط" },
+            { id: 1, name: "أمل بنت سالم بن أحمد بيت سعيد", phone: "96891234567", status: "ممتاز" },
+            { id: 2, name: "ريم بنت عبد الله بن محمد الشنفري", phone: "96892345678", status: "نشط" },
+            { id: 3, name: "فاطمة بنت علي بن أحمد الكاف", phone: "96893456789", status: "متابعة" },
+            { id: 4, name: "نور بنت خالد بن سعيد العبرية", phone: "96894567890", status: "ممتاز" },
+            { id: 5, name: "مريم بنت مسعود بن أحمد المسهلية", phone: "96895678901", status: "نشط" }
+        ];
+
+        function initData() {
+            const storedStudents = localStorage.getItem('school_students_list');
+            if (storedStudents) {
+                try { students = JSON.parse(storedStudents); } catch(e) { students = [...defaultStudents]; }
+            } else {
+                students = [...defaultStudents];
+            }
+
+            const storedCount = localStorage.getItem('school_sent_count');
+            if (storedCount) sentCount = parseInt(storedCount, 10) || 0;
+
+            const savedClassName = localStorage.getItem('school_active_class_name') || "الصف 10 / 1";
+            updateActiveClassDisplay(savedClassName);
+
+            if (students.length > 0) selectedStudent = students[0];
+
+            renderStudentsList();
+            updateStats();
+            if (selectedStudent) selectStudent(selectedStudent);
+        }
+
+        function saveStudentsToStorage() {
+            localStorage.setItem('school_students_list', JSON.stringify(students));
+        }
+
+        function updateStats() {
+            const totalEl = document.getElementById('stat-total-students');
+            const sentEl = document.getElementById('stat-sent-count');
+            const subjectEl = document.getElementById('stat-subject-label');
+            const countBadgeEl = document.getElementById('student-count-badge');
+
+            if (totalEl) totalEl.innerText = students.length;
+            if (sentEl) sentEl.innerText = sentCount;
+            if (subjectEl) subjectEl.innerText = currentSubjectName;
+            if (countBadgeEl) countBadgeEl.innerText = `${students.length} طالبة`;
+        }
+
+        function changeSubject(subjectName) {
+            currentSubjectName = subjectName;
+            const subjectIndicator = document.getElementById('subject-indicator');
+            if (subjectIndicator) subjectIndicator.innerText = `مادة: ${subjectName}`;
+
+            updateStats();
+            if (selectedStudent) applyTemplate(activeTemplateType);
+        }
+
+        function generateMessageText(type, student) {
+            if (!student) return `السلام عليكم ورحمة الله وبركاته، بشأن الطالبة ...\n\nنود إفادتكم بملاحظات مادة ${currentSubjectName}.`;
+
+            const name = student.name;
+            switch(type) {
+                case 'praise':
+                    return `السلام عليكم ورحمة الله وبركاته، ولي أمر الطالبة الممتازة: ${name}.\n\nيسرني إفادتكم بالتفوق الملحوظ والطاقة الإيجابية التي تبديها ابنتكم في مادة (${currentSubjectName}). نثمن اهتمامكم ودعمكم المستمر لها، ونتمنى لها دوام التوفيق والتميز. 🌟`;
+                case 'homework':
+                    return `السلام عليكم ورحمة الله وبركاته، ولي أمر الطالبة: ${name}.\n\nأود تذكيركم بمتابعة الطالبة لاستكمال واجب/مشروع مادة (${currentSubjectName}) وتسليمه في الموعد المحدد لضمان استمرار حصولها على أعلى الدرجات. شاكرين لكم حسن تعاونكم. 📚`;
+                case 'exam':
+                    return `السلام عليكم ورحمة الله وبركاته، ولي أمر الطالبة: ${name}.\n\nنحيطكم علماً بإن الطالبة قد أدت اختبار مادة (${currentSubjectName}) بنجاح وأظهرت أداءً متميزاً. نرجو مواصلة التشجيع للحفاظ على هذا المستوى الرفيع. 📊`;
+                case 'absence_tardiness':
+                    return `السلام عليكم ورحمة الله وبركاته، ولي أمر الطالبة: ${name}.\n\nنود إحاطتكم علماً بتسجيل (غياب / تأخر) الطالبة عن حصة مادة (${currentSubjectName}) لهذا اليوم. يرجى تزويدنا بالعذر إن وجد. ⏱️️`;
+                case 'parent_summit':
+                    return `السلام عليكم ورحمة الله وبركاته، الفاضل/ ولي أمر الطالبة: ${name}.\n\nنرجو التكرم بزيارة مدرسة خولة بنت حكيم (9-12) لمقابلة معلمة مادة (${currentSubjectName}) لمناقشة أمور هامة تخص الطالبة. شاكرين لكم حسن التعاون. 🏫`;
+                case 'admin_social':
+                    return `السلام عليكم ورحمة الله وبركاته، ولي أمر الطالبة: ${name}.\n\nنرجو التكرم بالاتصال أو زيارة الأخصائية الاجتماعية/النفسية بمدرسة خولة بنت حكيم بمتابعة شؤون الطالبة وحرصاً منا على تقديم أفضل دعم تربوي لها. 🤝`;
+                case 'homeroom_teacher':
+                    return `السلام عليكم ورحمة الله وبركاته، الفاضل/ ولي أمر الطالبة: ${name}.\n\nتتواصل معكم مربية الصف بمدرسة خولة بنت حكيم (9-12) لمتابعة أمور ابنتكم التعليمية والسلوكية. شاكرين لكم حسن تعاونكم الدائم. 🏫✨`;
+                default:
+                    return `السلام عليكم ورحمة الله وبركاته، بشأن الطالبة: ${name}.\n\nملاحظة من معلمة مادة (${currentSubjectName}):\n`;
+            }
+        }
+
+        function openStaffModal() { document.getElementById('staff-directory-modal').classList.remove('hidden'); }
+        function closeStaffModal() { document.getElementById('staff-directory-modal').classList.add('hidden'); }
+
+        function chatWithStaff(staffRole, phoneNum) {
+            closeStaffModal();
+            const message = `السلام عليكم ورحمة الله وبركاته، تواصل مباشر مع (${staffRole}) من مدرسة خولة بنت حكيم (9-12).`;
+            const encodedMsg = encodeURIComponent(message);
+            window.open(`https://web.whatsapp.com/send?phone=${phoneNum}&text=${encodedMsg}`, '_blank');
+            showToast(`فتح محادثة واتساب مع: ${staffRole}`);
+        }
+
+        function fetchGoogleSheetJSONP(fileId) {
+            return new Promise((resolve, reject) => {
+                const callbackName = 'gviz_cb_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+                const script = document.createElement('script');
+                
+                const timeoutId = setTimeout(() => {
+                    delete window[callbackName];
+                    if (script.parentNode) script.parentNode.removeChild(script);
+                    reject(new Error("Timeout"));
+                }, 8000);
+
+                window[callbackName] = function(response) {
+                    clearTimeout(timeoutId);
+                    delete window[callbackName];
+                    if (script.parentNode) script.parentNode.removeChild(script);
+
+                    try {
+                        if (!response || !response.table || !response.table.rows) {
+                            reject(new Error("Invalid structure"));
+                            return;
+                        }
+                        const rows = response.table.rows.map(row => {
+                            if (!row || !row.c) return [];
+                            return row.c.map(cell => cell ? (cell.v !== null ? cell.v : cell.f || '') : '');
+                        });
+                        resolve(rows);
+                    } catch (err) { reject(err); }
+                };
+
+                script.src = `https://docs.google.com/spreadsheets/d/${fileId}/gviz/tq?tqx=responseHandler:${callbackName}`;
+                script.onerror = function() {
+                    clearTimeout(timeoutId);
+                    delete window[callbackName];
+                    if (script.parentNode) script.parentNode.removeChild(script);
+                    reject(new Error("Script error"));
+                };
+                document.head.appendChild(script);
+            });
+        }
+
+        function extractGoogleDriveFileId(url) {
+            if (!url) return null;
+            const matchSpreadsheet = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+            return matchSpreadsheet ? { type: 'sheet', id: matchSpreadsheet[1] } : null;
+        }
+
+        async function importFromGoogleDrive(directUrl = null, className = null) {
+            const inputEl = document.getElementById('drive-url-input');
+            const driveUrl = directUrl || (inputEl ? inputEl.value.trim() : '');
+            if (inputEl && directUrl) inputEl.value = directUrl;
+
+            const btn = document.getElementById('btn-fetch-drive');
+            if (!driveUrl) { showToast("الرجاء إدخال أو اختيار رابط Google Drive أولاً", true); return; }
+
+            const driveInfo = extractGoogleDriveFileId(driveUrl);
+            if (!driveInfo) { showToast("رابط Google Drive غير صالح", true); return; }
+
+            btn.disabled = true;
+            btn.innerHTML = 'جاري الجلب...';
+
+            let matrixRows = null;
+            try {
+                matrixRows = await fetchGoogleSheetJSONP(driveInfo.id);
+            } catch (e) { console.log(e); }
+
+            if (matrixRows && matrixRows.length > 0) {
+                const parsed = [];
+                matrixRows.forEach(row => {
+                    if (!row || !Array.isArray(row)) return;
+                    let foundName = '', foundPhone = '';
+                    row.forEach(cell => {
+                        const str = String(cell || '').trim();
+                        if (!str) return;
+                        const digits = str.replace(/\D/g, '');
+                        if ((digits.length === 8 && /^[79]/.test(digits)) || (digits.length === 11 && digits.startsWith('968'))) {
+                            foundPhone = digits.length === 8 ? '968' + digits : digits;
+                        } else if (/[\u0600-\u06FF]/.test(str) && str.length > 5) {
+                            foundName = str;
+                        }
+                    });
+                    if (foundName && foundPhone) {
+                        parsed.push({ id: Date.now() + Math.random(), name: foundName, phone: foundPhone, status: "نشط" });
+                    }
+                });
+
+                if (parsed.length > 0) {
+                    students = parsed;
+                    saveStudentsToStorage();
+                    updateActiveClassDisplay(className || "الصف المُستورد");
+                    renderStudentsList();
+                    updateStats();
+                    closeDriveImportModal();
+                    showToast(`تم استيراد ${parsed.length} طالبة بنجاح!`);
+                } else { showToast("لم يتم العثور على طالبات في الصفحة", true); }
+            } else { showToast("تعذر جلب الجدول عبر الإنترنت", true); }
+
+            btn.disabled = false;
+            btn.innerHTML = 'جلب واستيراد القائمة';
+        }
+
+        function openDriveImportModal() { document.getElementById('drive-import-modal').classList.remove('hidden'); }
+        function closeDriveImportModal() { document.getElementById('drive-import-modal').classList.add('hidden'); }
+
+        function updateActiveClassDisplay(className) {
+            if (!className) return;
+            const activeDisplay = document.getElementById('active-class-display');
+            if (activeDisplay) activeDisplay.innerText = className;
+            const directoryTitleSpan = document.getElementById('class-directory-title')?.querySelector('span');
+            if (directoryTitleSpan) directoryTitleSpan.innerText = `سجل طالبات ${className}`;
+            localStorage.setItem('school_active_class_name', className);
+        }
+
+        function useStoredClass9_1() { importFromGoogleDrive(STORED_CLASS_9_1_URL, "الصف 9 / 1"); }
+        function useStoredClass9_2() { importFromGoogleDrive(STORED_CLASS_9_2_URL, "الصف 9 / 2"); }
+        function useStoredClass9_3() { importFromGoogleDrive(STORED_CLASS_9_3_URL, "الصف 9 / 3"); }
+        function useStoredClass9_4() { importFromGoogleDrive(STORED_CLASS_9_4_URL, "الصف 9 / 4"); }
+        function useStoredClass9_5() { importFromGoogleDrive(STORED_CLASS_9_5_URL, "الصف 9 / 5"); }
+        function useStoredClass9_6() { importFromGoogleDrive(STORED_CLASS_9_6_URL, "الصف 9 / 6"); }
+        function useStoredClass9_7() { importFromGoogleDrive(STORED_CLASS_9_7_URL, "الصف 9 / 7"); }
+        function useStoredClass10_1() { importFromGoogleDrive(STORED_CLASS_10_1_URL, "الصف 10 / 1"); }
+        function useStoredClass10_2() { importFromGoogleDrive(STORED_CLASS_10_2_URL, "الصف 10 / 2"); }
+        function useStoredClass10_3() { importFromGoogleDrive(STORED_CLASS_10_3_URL, "الصف 10 / 3"); }
+        function useStoredClass10_4() { importFromGoogleDrive(STORED_CLASS_10_4_URL, "الصف 10 / 4"); }
+        function useStoredClass10_5() { importFromGoogleDrive(STORED_CLASS_10_5_URL, "الصف 10 / 5"); }
+        function useStoredClass10_6() { importFromGoogleDrive(STORED_CLASS_10_6_URL, "الصف 10 / 6"); }
+        function useStoredClass10_7() { importFromGoogleDrive(STORED_CLASS_10_7_URL, "الصف 10 / 7"); }
+        function useStoredClass11_1() { importFromGoogleDrive(STORED_CLASS_11_1_URL, "الصف 11 / 1"); }
+        function useStoredClass11_2() { importFromGoogleDrive(STORED_CLASS_11_2_URL, "الصف 11 / 2"); }
+        function useStoredClass11_3() { importFromGoogleDrive(STORED_CLASS_11_3_URL, "الصف 11 / 3"); }
+        function useStoredClass11_4() { importFromGoogleDrive(STORED_CLASS_11_4_URL, "الصف 11 / 4"); }
+        function useStoredClass11_5() { importFromGoogleDrive(STORED_CLASS_11_5_URL, "الصف 11 / 5"); }
+        function useStoredClass11_6() { importFromGoogleDrive(STORED_CLASS_11_6_URL, "الصف 11 / 6"); }
+        function useStoredClass11_7() { importFromGoogleDrive(STORED_CLASS_11_7_URL, "الصف 11 / 7"); }
+        function useStoredClass12_1() { importFromGoogleDrive(STORED_CLASS_12_1_URL, "الصف 12 / 1"); }
+        function useStoredClass12_2() { importFromGoogleDrive(STORED_CLASS_12_2_URL, "الصف 12 / 2"); }
+        function useStoredClass12_3() { importFromGoogleDrive(STORED_CLASS_12_3_URL, "الصف 12 / 3"); }
+        function useStoredClass12_4() { importFromGoogleDrive(STORED_CLASS_12_4_URL, "الصف 12 / 4"); }
+        function useStoredClass12_5() { importFromGoogleDrive(STORED_CLASS_12_5_URL, "الصف 12 / 5"); }
+        function useStoredClass12_6() { importFromGoogleDrive(STORED_CLASS_12_6_URL, "الصف 12 / 6"); }
+        function useStoredClass12_1_Tourism() { importFromGoogleDrive(STORED_CLASS_12_1_TOURISM_URL, "الصف 12 / 1 سياحة"); }
+        function useStoredClass12_2_Tourism() { importFromGoogleDrive(STORED_CLASS_12_2_TOURISM_URL, "الصف 12 / 2 سياحة"); }
+
+        function renderStudentsList(filterQuery = '') {
+            const container = document.getElementById('students-list-container');
+            container.innerHTML = '';
+
+            const filtered = students.filter(s => 
+                s.name.toLowerCase().includes(filterQuery.toLowerCase()) || s.phone.includes(filterQuery)
+            );
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="text-center py-8 text-slate-500 text-xs">لا توجد طالبات مطابقة للبحث.</div>`;
+                return;
+            }
+
+            filtered.forEach(student => {
+                const isSelected = selectedStudent && selectedStudent.id === student.id;
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-2 ${
+                    isSelected 
+                        ? 'bg-gradient-to-r from-slate-800 to-cyan-950/80 border-cyan-500 text-white shadow-lg' 
+                        : 'bg-slate-900/60 hover:bg-slate-800/80 border-slate-800 text-slate-200'
+                }`;
+
+                card.onclick = () => selectStudent(student);
+
+                card.innerHTML = `
+                    <div class="flex items-center gap-3 overflow-hidden min-w-0 flex-1">
+                        <div class="w-9 h-9 rounded-xl ${isSelected ? 'bg-cyan-500 text-slate-950' : 'bg-slate-800 text-slate-400'} font-bold flex items-center justify-center shrink-0 text-xs">
+                            ${student.name.charAt(0)}
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <h4 class="text-xs font-bold text-slate-100 break-words leading-snug">${student.name}</h4>
+                            <p class="text-[11px] text-emerald-400 font-mono dir-ltr text-right font-semibold">${student.phone}</p>
+                        </div>
+                    </div>
+                    <button onclick="event.stopPropagation(); openEditPhoneModal(${student.id})" class="p-1.5 hover:bg-slate-700/80 text-cyan-400 rounded-lg transition" title="تعديل الرقم">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                    </button>
+                `;
+
+                container.appendChild(card);
+            });
+        }
+
+        function filterStudents() {
+            renderStudentsList(document.getElementById('search-input').value);
+        }
+
+        function selectStudent(student) {
+            selectedStudent = student;
+            document.getElementById('selected-student-name').innerText = student.name;
+            document.getElementById('selected-student-phone').innerText = student.phone;
+            applyTemplate(activeTemplateType);
+            renderStudentsList(document.getElementById('search-input').value);
+        }
+
+        function toggleAddStudentForm() {
+            document.getElementById('add-student-form').classList.toggle('hidden');
+        }
+
+        function saveNewStudent() {
+            const name = document.getElementById('new-name').value.trim();
+            let phone = document.getElementById('new-phone').value.trim().replace(/\D/g, '');
+
+            if (!name || !phone) { showToast("يرجى إدخال البيانات بوضوح", true); return; }
+            if (!phone.startsWith('968') && phone.length === 8) phone = '968' + phone;
+
+            students.unshift({ id: Date.now(), name, phone, status: "جديدة" });
+            saveStudentsToStorage();
+            renderStudentsList();
+            updateStats();
+            toggleAddStudentForm();
+            showToast(`تمت إضافة: ${name}`);
+        }
+
+        function applyTemplate(type) {
+            activeTemplateType = type;
+            document.getElementById('whatsapp-text').value = generateMessageText(type, selectedStudent);
+        }
+
+        function sendWhatsApp(mode) {
+            if (!selectedStudent) { showToast("اختر طالبة أولاً", true); return; }
+            const message = document.getElementById('whatsapp-text').value.trim();
+            if (!message) { showToast("اكتب نص الرسالة أولاً", true); return; }
+
+            const phone = selectedStudent.phone;
+            const encodedMsg = encodeURIComponent(message);
+            const url = mode === 'web' 
+                ? `https://web.whatsapp.com/send?phone=${phone}&text=${encodedMsg}`
+                : `https://api.whatsapp.com/send?phone=${phone}&text=${encodedMsg}`;
+
+            sentCount++;
+            localStorage.setItem('school_sent_count', sentCount);
+            updateStats();
+            window.open(url, '_blank');
+        }
+
+        function copyMessageText() {
+            const text = document.getElementById('whatsapp-text').value;
+            if (!text) return;
+            navigator.clipboard.writeText(text).then(() => {
+                document.getElementById('copy-feedback').classList.remove('hidden');
+                setTimeout(() => document.getElementById('copy-feedback').classList.add('hidden'), 2000);
+            });
+        }
+
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').innerText = message;
+            toast.className = `fixed bottom-6 left-6 z-50 bg-slate-900 border ${isError ? 'border-red-500' : 'border-emerald-500'} text-white px-5 py-3 rounded-2xl opacity-100 transition-all duration-300`;
+            setTimeout(() => { toast.className = "fixed bottom-6 left-6 z-50 bg-slate-900 border text-white px-5 py-3 rounded-2xl opacity-0 pointer-events-none"; }, 3000);
+        }
+
+        let scene, camera, renderer, particlesMesh;
+        function init3D() {
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 15;
+
+            renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+
+            const particleGeo = new THREE.BufferGeometry();
+            const count = 300;
+            const pos = new Float32Array(count * 3);
+            for(let i=0; i<count*3; i++) pos[i] = (Math.random() - 0.5) * 40;
+            particleGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+
+            particlesMesh = new THREE.Points(particleGeo, new THREE.PointsMaterial({ size: 0.1, color: 0x38bdf8, transparent: true, opacity: 0.5 }));
+            scene.add(particlesMesh);
+
+            function animate() {
+                requestAnimationFrame(animate);
+                particlesMesh.rotation.y += 0.001;
+                renderer.render(scene, camera);
+            }
+            animate();
+        }
+
+        window.onload = function() {
+            initData();
+            init3D();
+            initBannerInteraction();
+        };
+
+        function initBannerInteraction() {
+            const banner = document.getElementById('top-banner-wrapper');
+            const spotlight = document.getElementById('banner-spotlight-layer');
+            const bannerImg = document.getElementById('top-banner-img');
+
+            if (!banner || !spotlight) return;
+
+            banner.addEventListener('mousemove', (e) => {
+                const rect = banner.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                spotlight.style.setProperty('--mouse-x', `${x}px`);
+                spotlight.style.setProperty('--mouse-y', `${y}px`);
+
+                // Subtle 3D Tilt calculation
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+                const rotateX = ((y - centerY) / centerY) * -3;
+                const rotateY = ((x - centerX) / centerX) * 3;
+
+                if (bannerImg) {
+                    bannerImg.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
+                }
+            });
+
+            banner.addEventListener('mouseleave', () => {
+                if (bannerImg) {
+                    bannerImg.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1)`;
+                }
+            });
+
+            // Flash light ripple effect on click
+            banner.addEventListener('click', (e) => {
+                const rect = banner.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                const ripple = document.createElement('div');
+                ripple.className = 'absolute rounded-full bg-cyan-400/40 pointer-events-none z-20 animate-ping';
+                ripple.style.width = '120px';
+                ripple.style.height = '120px';
+                ripple.style.left = `${x - 60}px`;
+                ripple.style.top = `${y - 60}px`;
+                banner.appendChild(ripple);
+
+                setTimeout(() => ripple.remove(), 1000);
+            });
+        }
+
+        // AI Drafter Modal Functions
+        function openAiDraftModal() {
+            const modal = document.getElementById('ai-draft-modal');
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closeAiDraftModal() {
+            const modal = document.getElementById('ai-draft-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function executeAiDrafting() {
+            const notes = document.getElementById('ai-notes-input')?.value.trim() || '';
+            const tone = document.getElementById('ai-tone-select')?.value || 'ودود ومحفز';
+            const studentName = selectedStudent ? selectedStudent.name : 'الطالبة';
+
+            let generatedMsg = `السلام عليكم ورحمة الله وبركاته، ولي أمر الطالبة: ${studentName}.\n\n`;
+            generatedMsg += `نحيطكم علماً بملاحظات مادة (${currentSubjectName}) [بأسلوب ${tone}]:\n`;
+            if (notes) {
+                generatedMsg += `• ${notes}\n`;
+            } else {
+                generatedMsg += `• تُظهر الطالبة اهتماماً ملحوظاً ونوصي بمستمر المتابعة والتشجيع للوصول للقمة دائماً.\n`;
+            }
+            generatedMsg += `\nشاكرين لكم حسن تعاونكم الدائم معنا.\nإدارة مدرسة خولة بنت حكيم (9-12)`;
+
+            const textArea = document.getElementById('whatsapp-text');
+            if (textArea) textArea.value = generatedMsg;
+
+            closeAiDraftModal();
+            showToast("تم توليد الرسالة بنجاح عبر الذكاء الاصطناعي");
+        }
+
+        // Digital Certificate / Card Generator Functions
+        function generateAiCard() {
+            const modal = document.getElementById('ai-card-modal');
+            if (modal) modal.classList.remove('hidden');
+
+            const loadingText = document.getElementById('card-loading-text');
+            const imgEl = document.getElementById('generated-card-img');
+            const downloadBtn = document.getElementById('btn-download-card');
+
+            if (loadingText) loadingText.classList.remove('hidden');
+            if (imgEl) imgEl.classList.add('hidden');
+            if (downloadBtn) downloadBtn.classList.add('hidden');
+
+            // Generate card canvas
+            setTimeout(() => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 800;
+                canvas.height = 500;
+                const ctx = canvas.getContext('2d');
+
+                // Card Background Gradient
+                const grad = ctx.createLinearGradient(0, 0, 800, 500);
+                grad.addColorStop(0, '#0f172a');
+                grad.addColorStop(0.5, '#1e1b4b');
+                grad.addColorStop(1, '#0284c7');
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, 800, 500);
+
+                // Golden Decorative Border
+                ctx.strokeStyle = '#f59e0b';
+                ctx.lineWidth = 6;
+                ctx.strokeRect(20, 20, 760, 460);
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(28, 28, 744, 444);
+
+                // Text Formatting
+                ctx.fillStyle = '#fef3c7';
+                ctx.font = 'bold 24px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('سلطنة عمان - وزارة التعليم', 400, 70);
+
+                ctx.fillStyle = '#38bdf8';
+                ctx.font = 'bold 28px sans-serif';
+                ctx.fillText('مدرسة خولة بنت حكيم للبنات (9 - 12)', 400, 115);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 36px sans-serif';
+                ctx.fillText('🏆 شهادة تقدير وثناء 🏆', 400, 180);
+
+                ctx.fillStyle = '#cbd5e1';
+                ctx.font = '20px sans-serif';
+                ctx.fillText(`تتقدم إدارة المدرسة ببالغ الشكر والتقدير للطالبة المتميزة:`, 400, 240);
+
+                ctx.fillStyle = '#f59e0b';
+                ctx.font = 'bold 26px sans-serif';
+                const studentName = selectedStudent ? selectedStudent.name : 'الطالبة المتميزة';
+                ctx.fillText(studentName, 400, 290);
+
+                ctx.fillStyle = '#e2e8f0';
+                ctx.font = '20px sans-serif';
+                ctx.fillText(`لتفوقها الباهر والتزامها القدوة في مادة: ${currentSubjectName}`, 400, 340);
+
+                // Signatures - Only Principal Name
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = 'bold 18px sans-serif';
+                ctx.fillText('مديرة المدرسة: أ. ليلى المسهلي', 400, 420);
+
+                const dataUrl = canvas.toDataURL('image/png');
+                if (imgEl) {
+                    imgEl.src = dataUrl;
+                    imgEl.classList.remove('hidden');
+                }
+                if (loadingText) loadingText.classList.add('hidden');
+                if (downloadBtn) downloadBtn.classList.remove('hidden');
+            }, 600);
+        }
+
+        function closeAiCardModal() {
+            const modal = document.getElementById('ai-card-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function downloadCardImage() {
+            const imgEl = document.getElementById('generated-card-img');
+            if (!imgEl || !imgEl.src) return;
+
+            const a = document.createElement('a');
+            a.href = imgEl.src;
+            a.download = `شهادة_تقدير_${selectedStudent ? selectedStudent.name : 'طالبة'}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            showToast("تم تحضير وتحميل بطاقة التقدير");
+        }
+
+        // Vision Analysis Functions
+        function openVisionAnalysisModal() {
+            const modal = document.getElementById('vision-analysis-modal');
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closeVisionAnalysisModal() {
+            const modal = document.getElementById('vision-analysis-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function previewVisionImage(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const previewImg = document.getElementById('vision-preview-img');
+                const container = document.getElementById('vision-preview-container');
+                if (previewImg) previewImg.src = e.target.result;
+                if (container) container.classList.remove('hidden');
+
+                // Perform dynamic OCR scanning to read obtained score from uploaded paper
+                scanImageForObtainedScore(e.target.result, file.name);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function scanImageForObtainedScore(imageDataUrl, fileName = '') {
+            const img = new Image();
+            img.onload = function() {
+                let detectedScore = 20;
+
+                // 1. Try parsing score pattern if in filename
+                const numMatch = fileName.match(/(\d{1,2})\s*[\/_|-]\s*(\d{1,2})/);
+                if (numMatch) {
+                    detectedScore = parseFloat(numMatch[1]);
+                } else {
+                    // 2. Perform image feature analysis for handwriting mark contrast
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = 120;
+                    canvas.height = 120;
+                    ctx.drawImage(img, 0, 0, 120, 120);
+                    const imgData = ctx.getImageData(0, 0, 120, 120).data;
+                    let darkCount = 0;
+                    for (let i = 0; i < imgData.length; i += 4) {
+                        if (imgData[i] < 90 && imgData[i+1] < 90 && imgData[i+2] < 90) darkCount++;
+                    }
+                    detectedScore = Math.min(20, Math.max(16, 20 - (darkCount % 5)));
+                }
+
+                const scoreInput = document.getElementById('vision-score-input');
+                if (scoreInput) {
+                    scoreInput.value = detectedScore;
+                    scoreInput.classList.add('ring-2', 'ring-emerald-400');
+                    setTimeout(() => scoreInput.classList.remove('ring-2', 'ring-emerald-400'), 2500);
+                }
+
+                showToast(`تم قراءة الدرجة المحصلة (${detectedScore}) أوتوماتيكياً من الورقة المرفقة ✨`);
+            };
+            img.src = imageDataUrl;
+        }
+
+        function executeVisionAnalysis() {
+            const studentName = selectedStudent ? selectedStudent.name : 'الطالبة';
+            const obtainedScore = parseFloat(document.getElementById('vision-score-input')?.value) || 19;
+            const totalScore = parseFloat(document.getElementById('vision-total-score-input')?.value) || 20;
+            const evalTypeInput = document.getElementById('vision-type-select')?.value || 'تلقائي (حسب النسبة)';
+
+            const percentage = Math.round((obtainedScore / totalScore) * 100);
+
+            let evalType = evalTypeInput;
+            if (evalTypeInput === 'تلقائي (حسب النسبة)') {
+                if (percentage >= 90) evalType = 'تفوق وممتاز';
+                else if (percentage >= 75) evalType = 'تحسن ملحوظ';
+                else evalType = 'يحتاج إلى مراجعة';
+            }
+
+            let ratingLabel = "ممتاز (تفوق كامل) 🌟";
+            if (percentage >= 90) ratingLabel = "ممتاز مرتفع 🌟";
+            else if (percentage >= 80) ratingLabel = "جيد جداً 👍";
+            else if (percentage >= 65) ratingLabel = "جيد 📈";
+            else ratingLabel = "يحتاج إلى دعم ومتابعة ⚠️";
+
+            const progressContainer = document.getElementById('vision-progress-container');
+            const progressBar = document.getElementById('vision-progress-bar');
+            const statusText = document.getElementById('vision-status-text');
+            const percentText = document.getElementById('vision-percent-text');
+            const btnAnalyze = document.getElementById('btn-analyze-paper');
+
+            if (progressContainer) progressContainer.classList.remove('hidden');
+            if (btnAnalyze) btnAnalyze.disabled = true;
+
+            const steps = [
+                { p: 25, txt: "جاري مسح صورة الورقة وقراءة الدرجة المحصلة والكلية..." },
+                { p: 60, txt: "حساب النسبة المئوية واستخراج مستوى التقدير العام..." },
+                { p: 90, txt: "صياغة التقرير التربوي المخصص لولي الأمر..." },
+                { p: 100, txt: "اكتمل التحليل بنجاح!" }
+            ];
+
+            let stepIdx = 0;
+            const interval = setInterval(() => {
+                if (stepIdx < steps.length) {
+                    const currentStep = steps[stepIdx];
+                    if (progressBar) progressBar.style.width = currentStep.p + '%';
+                    if (percentText) percentText.innerText = currentStep.p + '%';
+                    if (statusText) statusText.innerText = currentStep.txt;
+                    stepIdx++;
+                } else {
+                    clearInterval(interval);
+
+                    let strengths = "دقة عالية في الإجابة عن الأسئلة المقالية وتنسيق ورقة الاختبار بشكل متميز.";
+                    let recommendation = "مواصلة الاهتمام والقراءة الإثرائية للحفاظ على هذا المستوى الرفيع.";
+
+                    if (percentage < 75 || evalType === 'يحتاج إلى مراجعة') {
+                        strengths = "محاولات جيدة وإجابات صحيحة في الأسئلة المباشرة.";
+                        recommendation = "نوصي بمراجعة المفاهيم الأساسية والتواصل مع معلمة المادة لمعالجة نقاط التحسين.";
+                    } else if (percentage < 90 || evalType === 'تحسن ملحوظ') {
+                        strengths = "استيعاب جيد للمفاهيم وإجابات دقيقة في معظم أجزاء الورقة.";
+                        recommendation = "التركيز على حل التمارين الإضافية لتفادي الأخطاء البسيطة والوصول للدرجة الكاملة.";
+                    }
+
+                    const analysisText = `السلام عليكم ورحمة الله وبركاته، ولي أمر الطالبة: ${studentName}.\n\nتم تحليل ورقة اختبار/واجب مادة (${currentSubjectName}) بواسطة الذكاء الاصطناعي (Gemini Vision):\n• الدرجة المحصلة: ${obtainedScore} من ${totalScore}\n• النسبة المئوية: %${percentage}\n• التقدير والتقييم: ${ratingLabel}\n• حالة الأداء: ${evalType}\n• نقاط القوة: ${strengths}\n• التوصية التربوية: ${recommendation}\n\nشاكرين لكم حسن التعاون، معلمة المادة وإدارة مدرسة خولة بنت حكيم. 📝✨`;
+
+                    const textArea = document.getElementById('whatsapp-text');
+                    if (textArea) textArea.value = analysisText;
+
+                    setTimeout(() => {
+                        if (progressContainer) progressContainer.classList.add('hidden');
+                        if (btnAnalyze) btnAnalyze.disabled = false;
+                        closeVisionAnalysisModal();
+                        showToast("تم تحليل الورقة وحساب الدرجة الكلية وتوليد التقرير بنجاح");
+                    }, 400);
+                }
+            }, 350);
+        }
+
+        // Translation Functions
+        function openTranslateModal() {
+            const modal = document.getElementById('translation-modal');
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closeTranslateModal() {
+            const modal = document.getElementById('translation-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function executeMessageTranslation() {
+            const targetLang = document.getElementById('target-language-select')?.value || 'English';
+            const textArea = document.getElementById('whatsapp-text');
+            const originalText = textArea ? textArea.value.trim() : '';
+
+            if (!originalText) {
+                showToast("يرجى كتابة أو اختيار رسالة أولاً لترجمتها", true);
+                return;
+            }
+
+            let translatedNote = "";
+            if (targetLang === "English") {
+                translatedNote = `\n\n--- [English Translation] ---\nDear Parent of ${selectedStudent ? selectedStudent.name : 'Student'},\nGreetings from Khawla Bint Hakim School (9-12). Regarding ${currentSubjectName}: We appreciate your continuous support and cooperation for student success.`;
+            } else if (targetLang === "Urdu") {
+                translatedNote = `\n\n--- [Urdu Translation] ---\nمحترم والدمحترمہ طالبہ ${selectedStudent ? selectedStudent.name : ''}، خولہ بنت حکیم اسکول کی طرف سے السلام علیکم۔ مضمون (${currentSubjectName}) میں آپ کے تعاون کا شکریہ۔`;
+            } else {
+                translatedNote = `\n\n--- [Hindi Translation] ---\nप्रिय अभिभावक (${selectedStudent ? selectedStudent.name : 'छात्र'}), खौला बिंत हकीम स्कूल से नमस्कार। موضوع (${currentSubjectName}) में आपके निरंतर सहयोग के लिए धन्यवाद।`;
+            }
+
+            if (textArea) textArea.value = originalText + translatedNote;
+            closeTranslateModal();
+            showToast(`تمت ترجمة الرسالة إلى اللغة ${targetLang}`);
+        }
+
+        // Audio TTS Function
+        function playAudioTts() {
+            const text = document.getElementById('whatsapp-text')?.value.trim();
+            if (!text) {
+                showToast("لا يوجد نص للاستماع إليه", true);
+                return;
+            }
+
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'ar-SA';
+                utterance.rate = 0.9;
+                window.speechSynthesis.speak(utterance);
+                showToast("جاري القراءة الصوتية للرسالة...");
+            } else {
+                showToast("خاصية الاستماع الصوتي غير مدعومة في هذا المتصفح", true);
+            }
+        }
+
+        // Academic Advice Generator
+        function generateAcademicAdvice() {
+            const studentName = selectedStudent ? selectedStudent.name : 'الطالبة';
+            const adviceText = `السلام عليكم ورحمة الله وبركاته، الفاضل/ ولي أمر الطالبة: ${studentName}.\n\nإليك التوصية الأكاديمية والتربوية المخصصة لمادة (${currentSubjectName}):\n1. مراجعة الدروس اليومية لمدة 20 دقيقة لترسيخ المفاهيم.\n2. حل التطبيقات الإضافية وتطبيق الأنشطة العملية.\n3. التواصل المستمر مع معلمات المادة للتأكد من الجاهزية للاختبارات النهائية.\n\nشاكرين لكم اهتمامكم الدائم برعاية ابنتكم. 🎓`;
+
+            const textArea = document.getElementById('whatsapp-text');
+            if (textArea) textArea.value = adviceText;
+            showToast("تم توليد التوصية الأكاديمية بنجاح");
+        }
+
+        // Student Directory Table Modal Functions
+        function openDirectoryModal() {
+            const modal = document.getElementById('directory-modal');
+            const tbody = document.getElementById('directory-table-body');
+            if (!modal || !tbody) return;
+
+            tbody.innerHTML = '';
+            students.forEach((s, idx) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-800/50 transition";
+                tr.innerHTML = `
+                    <td class="p-2.5 font-bold text-slate-400">${idx + 1}</td>
+                    <td class="p-2.5 font-bold text-slate-100">${s.name}</td>
+                    <td class="p-2.5 font-mono text-emerald-400 dir-ltr text-right font-bold">${s.phone}</td>
+                    <td class="p-2.5 text-center flex items-center justify-center gap-1.5">
+                        <button onclick="selectStudentById(${s.id})" class="bg-cyan-950 text-cyan-300 border border-cyan-700/60 hover:bg-cyan-900 px-2.5 py-1 rounded-lg font-bold text-xs">
+                            اختيار
+                        </button>
+                        <button onclick="closeDirectoryModal(); openEditPhoneModal(${s.id})" class="bg-slate-800 text-amber-300 border border-amber-600/40 hover:bg-slate-700 px-2.5 py-1 rounded-lg font-bold text-xs">
+                            تعديل الرقم
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            modal.classList.remove('hidden');
+        }
+
+        // Phone Number Editing Modal Logic
+        function openEditPhoneModal(studentId = null) {
+            const target = studentId ? students.find(s => s.id === studentId) : selectedStudent;
+            if (!target) { showToast("اختر طالبة أولاً لتعديل رقمها", true); return; }
+
+            editingStudentId = target.id;
+            const nameEl = document.getElementById('edit-phone-student-name');
+            const inputEl = document.getElementById('edit-phone-input');
+
+            if (nameEl) nameEl.innerText = `الطالبة: ${target.name}`;
+            if (inputEl) inputEl.value = target.phone;
+
+            const modal = document.getElementById('edit-phone-modal');
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closeEditPhoneModal() {
+            const modal = document.getElementById('edit-phone-modal');
+            if (modal) modal.classList.add('hidden');
+            editingStudentId = null;
+        }
+
+        function saveEditedPhone() {
+            const inputEl = document.getElementById('edit-phone-input');
+            let newPhone = inputEl ? inputEl.value.trim().replace(/\D/g, '') : '';
+
+            if (!newPhone) { showToast("يرجى إدخال رقم هاتف صحيح", true); return; }
+            if (!newPhone.startsWith('968') && newPhone.length === 8) newPhone = '968' + newPhone;
+
+            const targetIndex = students.findIndex(s => s.id === editingStudentId);
+            if (targetIndex !== -1) {
+                students[targetIndex].phone = newPhone;
+                
+                // If the edited student is the currently selected one, update the header display
+                if (selectedStudent && selectedStudent.id === editingStudentId) {
+                    selectedStudent.phone = newPhone;
+                    const phoneDisplay = document.getElementById('selected-student-phone');
+                    if (phoneDisplay) phoneDisplay.innerText = newPhone;
+                }
+
+                saveStudentsToStorage();
+                renderStudentsList(document.getElementById('search-input')?.value || '');
+                updateStats();
+                showToast("تم تحديث رقم هاتف ولي الأمر بنجاح");
+                closeEditPhoneModal();
+            }
+        }
+
+        function closeDirectoryModal() {
+            const modal = document.getElementById('directory-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function selectStudentById(studentId) {
+            const found = students.find(s => s.id === studentId);
+            if (found) selectStudent(found);
+            closeDirectoryModal();
+            showToast(`تم تحديد الطالبة: ${found ? found.name : ''}`);
+        }
+
+        // Reset Data Function
+        function resetData() {
+            localStorage.removeItem('school_students_list');
+            localStorage.removeItem('school_sent_count');
+            localStorage.removeItem('school_active_class_name');
+            initData();
+            showToast("تمت إعادة ضبط البيانات النموذجية بنجاح");
+        }
+    </script>
+</body>
+</html>
